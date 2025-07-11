@@ -27,12 +27,14 @@ class _AddBookPageState extends State<AddBookPage> with TickerProviderStateMixin
   late Animation<double> _slideAnimation;
   late Animation<double> _fadeAnimation;
 
+  /// Initialize controllers and animation
   @override
   void initState() {
     super.initState();
     titleCtrl = TextEditingController(text: widget.initialTitle);
     authorCtrl = TextEditingController(text: widget.initialAuthor);
-    yearCtrl = TextEditingController(text: widget.initialYear.toString());
+    // Set yearCtrl to empty if initialYear is 0
+    yearCtrl = TextEditingController(text: widget.initialYear == 0 ? '' : widget.initialYear.toString());
     
     _animationController = AnimationController(
       duration: Duration(milliseconds: 600),
@@ -50,6 +52,7 @@ class _AddBookPageState extends State<AddBookPage> with TickerProviderStateMixin
     _animationController.forward();
   }
 
+  /// Dispose controllers
   @override
   void dispose() {
     titleCtrl.dispose();
@@ -59,6 +62,7 @@ class _AddBookPageState extends State<AddBookPage> with TickerProviderStateMixin
     super.dispose();
   }
 
+  /// Handle book addition and return data to parent
   void addBook() {
     if (titleCtrl.text.isEmpty || authorCtrl.text.isEmpty || yearCtrl.text.isEmpty) {
       setState(() {
@@ -67,11 +71,12 @@ class _AddBookPageState extends State<AddBookPage> with TickerProviderStateMixin
       return;
     }
 
-    // Return the book data to parent page
+    // Return the book data to parent page (no image)
     Navigator.pop(context, {
       'title': titleCtrl.text.trim(),
       'author': authorCtrl.text.trim(),
       'year': int.tryParse(yearCtrl.text) ?? 0,
+      'image': null,
     });
   }
 
@@ -217,198 +222,43 @@ class _AddBookPageState extends State<AddBookPage> with TickerProviderStateMixin
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Book preview
-                              Container(
-                                padding: EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFF5E9DA), // light brown
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 20,
-                                      offset: Offset(0, 10),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: 80,
-                                      height: 112,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            Color(0xFF8B4513),
-                                            Color(0xFFA0522D),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Color(0xFF8B4513).withOpacity(0.3),
-                                            blurRadius: 12,
-                                            offset: Offset(0, 6),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.book,
-                                          color: Colors.white,
-                                          size: 40,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'Book Details',
-                                      style: Theme.of(context).textTheme.headlineMedium,
-                                    ),
-                                  ],
+                              // Only show text fields and button
+                              TextField(
+                                controller: titleCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Book Title',
+                                  prefixIcon: Icon(Icons.text_fields),
                                 ),
                               ),
-                              
-                              SizedBox(height: 24),
-                              
-                              // Form fields
-                              Container(
-                                padding: EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFF5E9DA), // light brown
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 10,
-                                      offset: Offset(0, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  children: [
-                                    TextField(
-                                      controller: titleCtrl,
-                                      decoration: InputDecoration(
-                                        labelText: 'Book Title',
-                                        prefixIcon: Icon(Icons.title, color: Color(0xFF8B4513)),
-                                        hintText: 'Enter the book title',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: 20),
-                                    TextField(
-                                      controller: authorCtrl,
-                                      decoration: InputDecoration(
-                                        labelText: 'Author Name',
-                                        prefixIcon: Icon(Icons.person, color: Color(0xFF8B4513)),
-                                        hintText: 'Enter the author name',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: 20),
-                                    TextField(
-                                      controller: yearCtrl,
-                                      decoration: InputDecoration(
-                                        labelText: 'Published Year',
-                                        prefixIcon: Icon(Icons.calendar_today, color: Color(0xFF8B4513)),
-                                        hintText: 'Enter publication year',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                    ),
-                                    
-                                    if (errorMessage.isNotEmpty) ...[
-                                      SizedBox(height: 20),
-                                      Container(
-                                        padding: EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: Color(0xFFFEE2E2),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: Color(0xFFFCA5A5)),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.error_outline,
-                                              color: Color(0xFFDC2626),
-                                              size: 20,
-                                            ),
-                                            SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                errorMessage,
-                                                style: TextStyle(
-                                                  color: Color(0xFFDC2626),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
+                              SizedBox(height: 16),
+                              TextField(
+                                controller: authorCtrl,
+                                decoration: InputDecoration(
+                                  labelText: 'Author Name',
+                                  prefixIcon: Icon(Icons.person),
                                 ),
                               ),
-                              
+                              SizedBox(height: 16),
+                              TextField(
+                                controller: yearCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: 'Published Year',
+                                  prefixIcon: Icon(Icons.calendar_today),
+                                ),
+                              ),
                               SizedBox(height: 24),
-                              
-                              // Action buttons
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      style: ElevatedButton.styleFrom(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        backgroundColor: Color(0xFF8B4513),
-                                        foregroundColor: Colors.white,
-                                        elevation: 4,
-                                        shadowColor: Color(0xFF8B4513).withOpacity(0.3),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'Cancel',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
+                              if (errorMessage.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12.0),
+                                  child: Text(
+                                    errorMessage,
+                                    style: TextStyle(color: Colors.red),
                                   ),
-                                  SizedBox(width: 16),
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: addBook,
-                                      style: ElevatedButton.styleFrom(
-                                        padding: EdgeInsets.symmetric(vertical: 16),
-                                        backgroundColor: Color(0xFF8B4513),
-                                        foregroundColor: Colors.white,
-                                        elevation: 4,
-                                        shadowColor: Color(0xFF8B4513).withOpacity(0.3),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        widget.isEditing ? 'Update Book' : 'Add Book',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
+                              ElevatedButton(
+                                onPressed: addBook,
+                                child: Text(widget.isEditing ? 'Update Book' : 'Add Book'),
                               ),
                             ],
                           ),

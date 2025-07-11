@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'add_book_page.dart';
+import 'services/api_service.dart';
 import 'dart:math';
 
 class HomePage extends StatefulWidget {
@@ -8,37 +9,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  List books = [];
+  List<Book> books = [];
+  bool isLoading = true;
+  bool isConnected = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-
-  // Initial demo books
-  List get initialBooks => [
-    {
-      'title': 'The Great Gatsby',
-      'author': 'F. Scott Fitzgerald',
-      'publishedYear': 1925,
-      'image': 'assets/gatsby.jpg',
-    },
-    {
-      'title': 'To Kill a Mockingbird',
-      'author': 'Harper Lee',
-      'publishedYear': 1960,
-      'image': 'assets/mockingbird.jpg',
-    },
-    {
-      'title': '1984',
-      'author': 'George Orwell',
-      'publishedYear': 1949,
-      'image': 'assets/1984.jpg',
-    },
-    {
-      'title': 'Pride and Prejudice',
-      'author': 'Jane Austen',
-      'publishedYear': 1813,
-      'image': 'assets/pride-prejudice.jpg',
-    },
-  ];
 
   final List<String> availableBookImages = [
     'assets/1.jpg',
@@ -55,7 +30,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    books = List.from(initialBooks);
     _animationController = AnimationController(
       duration: Duration(milliseconds: 800),
       vsync: this,
@@ -63,7 +37,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _animationController.forward();
+    _loadBooks();
   }
 
   @override
@@ -72,7 +46,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void addBook(String title, String author, int year, {String? image}) {
+  Future<void> _loadBooks() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Check server health first
+      isConnected = await ApiService.checkServerHealth();
+      
+      if (isConnected) {
+        final loadedBooks = await ApiService.getBooks();
+        setState(() {
+          books = loadedBooks;
+          isLoading = false;
+        });
+        _animationController.forward();
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        _showConnectionError();
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      _showConnectionError();
+    }
+  }
+
+  void _showConnectionError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Cannot connect to server. Please check if the backend is running.'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
+  Future<void> addBook(String title, String author, int year, {String? image}) async {
     final nameRegExp = RegExp(r'^[A-Za-z ]+[0-9]*[A-D]*$');
     String? error;
     if (title.trim().isEmpty || !nameRegExp.hasMatch(title)) {
@@ -88,82 +102,115 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       );
       return;
     }
-    // Collect images already used in the current session
-    final usedImages = books.map((b) => b['image'] as String?).where((img) => img != null).toSet();
-    // Find unused images
-    final unusedImages = availableBookImages.where((img) => !usedImages.contains(img)).toList();
-    String assignedImage;
-    if (unusedImages.isNotEmpty) {
-      assignedImage = unusedImages[Random().nextInt(unusedImages.length)];
-    } else {
-      assignedImage = defaultBookImage;
-    }
-    setState(() {
-      books.add({
-        'title': title,
-        'author': author,
-        'publishedYear': year,
-        'image': image ?? assignedImage,
+
+    try {
+      final newBook = Book(
+        title: title.trim(),
+        author: author.trim(),
+        publishedYear: year,
+      );
+
+      final createdBook = await ApiService.createBook(newBook);
+      setState(() {
+        books.insert(0, createdBook);
       });
-    });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Book added successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding book: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void editBook(int index, String title, String author, int year) {
-    setState(() {
-      books[index] = {
-        'title': title,
-        'author': author,
-        'publishedYear': year,
-      };
-    });
+  Future<void> editBook(int index, String title, String author, int year) async {
+    try {
+      final bookToUpdate = books[index];
+      final updatedBook = Book(
+        title: title.trim(),
+        author: author.trim(),
+        publishedYear: year,
+      );
+
+      final result = await ApiService.updateBook(bookToUpdate.id!, updatedBook);
+      setState(() {
+        books[index] = result;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Book updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating book: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void deleteBook(int index) {
-    setState(() {
-      books.removeAt(index);
-    });
+  Future<void> deleteBook(int index) async {
+    try {
+      final bookToDelete = books[index];
+      await ApiService.deleteBook(bookToDelete.id!);
+      setState(() {
+        books.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Book deleted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting book: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  Widget buildBeautifulBookIcon(Map book, {bool isLarge = false}) {
+  Widget buildBeautifulBookIcon(Book book, {bool isLarge = false}) {
     final baseSize = isLarge ? 100.0 : 60.0;
     final width = baseSize;
     final height = baseSize * 1.4;
 
-    if (book['image'] != null && book['image'].toString().isNotEmpty) {
-      return Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 10,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.asset(
-            book['image'],
-            fit: BoxFit.cover,
-            width: width,
-            height: height,
-            errorBuilder: (context, error, stackTrace) {
-              return Image.asset(
-                'assets/brownbook.jpg',
-                fit: BoxFit.cover,
-                width: width,
-                height: height,
-              );
-            },
-          ),
+    // If the book has an image, display it
+    if (book.image != null && book.image!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.memory(
+          Uri.parse(book.image!).data!.contentAsBytes(),
+          fit: BoxFit.cover,
+          width: width,
+          height: height,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildGradientCover(book, width, height);
+          },
         ),
       );
     }
-    final titleHash = book['title'].hashCode;
+    // Otherwise, show a colored/gradient book cover
+    return _buildGradientCover(book, width, height);
+  }
+
+  Widget _buildGradientCover(Book book, double width, double height) {
+    final titleHash = book.title.hashCode;
     final colors = [
       Color(0xFF8B4513),
       Color(0xFFA0522D),
@@ -248,51 +295,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               children: [
                 Container(
                   height: 2,
-                  width: width * 0.5,
-                  margin: EdgeInsets.only(bottom: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade700,
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-                Container(
-                  height: 2,
                   width: width * 0.4,
-                  margin: EdgeInsets.only(bottom: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade500,
+                    color: coverColor.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
+                SizedBox(height: 2),
                 Container(
-                  height: 2,
-                  width: width * 0.45,
-                  margin: EdgeInsets.only(bottom: 4),
+                  height: 1,
+                  width: width * 0.3,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
+                    color: coverColor.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Container(
+                  height: 1,
+                  width: width * 0.35,
+                  decoration: BoxDecoration(
+                    color: coverColor.withOpacity(0.4),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),
               ],
-            ),
-          ),
-          Positioned(
-            top: 6,
-            right: 6,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 2,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
             ),
           ),
         ],
@@ -309,140 +336,99 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             image: AssetImage('assets/bg.jpg'),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.45), // Optional: darken for readability
+              Colors.black.withOpacity(0.3),
               BlendMode.darken,
             ),
           ),
         ),
-        child: Stack(
-          children: [
-            // Background decorative elements (remain on top of the image)
-            Positioned(
-              top: -50,
-              right: -50,
-              child: Container(
-                width: 200,
-                height: 200,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Color(0xFF8B4513).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -100,
-              left: -100,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Color(0xFFA0522D).withOpacity(0.08),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 200,
-              left: -30,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Color(0xFFCD853F).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            // Book pattern background
-            Positioned.fill(
-              child: CustomPaint(
-                painter: BookPatternPainter(),
-              ),
-            ),
-            // Main content
-            SafeArea(
-              child: Column(
-                children: [
-                  // Beautiful header
-                  Container(
-                    padding: EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF8B4513),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(32),
-                        bottomRight: Radius.circular(32),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.library_books,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'My Library',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                '${books.length} books in collection',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withOpacity(0.9),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-          IconButton(
-                          icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              setState(() {
-                books = List.from(initialBooks);
-              });
-            },
-            tooltip: 'Reset to demo data',
-          ),
-        ],
-      ),
+                  color: Color(0xFF8B4513),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(32),
+                    bottomRight: Radius.circular(32),
                   ),
-                  
-                  // Book list
-                  Expanded(
-                    child: books.isEmpty
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 15,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.library_books,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'My Book Library',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Manage your collection',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.refresh, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          isLoading = true;
+                        });
+                        _loadBooks();
+                      },
+                      tooltip: 'Refresh data',
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Book list
+              Expanded(
+                child: isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                    : books.isEmpty
                         ? FadeTransition(
                             opacity: _fadeAnimation,
                             child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
                                     padding: EdgeInsets.all(24),
                                     decoration: BoxDecoration(
-                                      color: Color(0xFFF5E9DA), // light brown
+                                      color: Color(0xFFF5E9DA),
                                       borderRadius: BorderRadius.circular(20),
                                       boxShadow: [
                                         BoxShadow(
@@ -453,36 +439,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                       ],
                                     ),
                                     child: buildBeautifulBookIcon(
-                                      {'title': 'Demo', 'publishedYear': 2020},
+                                      Book(title: 'Demo', author: 'Demo Author', publishedYear: 2020),
                                       isLarge: true,
                                     ),
                                   ),
                                   SizedBox(height: 24),
-                  Text(
+                                  Text(
                                     'Your library is empty',
                                     style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
                                     'Start building your collection by adding your first book!',
                                     style: Theme.of(context).textTheme.bodyMedium,
                                     textAlign: TextAlign.center,
-                  ),
-                ],
+                                  ),
+                                ],
                               ),
-              ),
-            )
+                            ),
+                          )
                         : FadeTransition(
                             opacity: _fadeAnimation,
                             child: ListView.builder(
                               padding: EdgeInsets.all(16),
-              itemCount: books.length,
+                              itemCount: books.length,
                               itemBuilder: (context, index) {
-                final book = books[index];
+                                final book = books[index];
                                 return Container(
                                   margin: EdgeInsets.only(bottom: 16),
                                   child: Card(
-                                    color: Color(0xFFF5E9DA), // light brown
+                                    color: Color(0xFFF5E9DA),
                                     child: Container(
                                       padding: EdgeInsets.all(20),
                                       child: Row(
@@ -494,14 +480,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                      book['title'] ?? 'Unknown Title',
+                                                  book.title,
                                                   style: Theme.of(context).textTheme.titleLarge,
                                                   maxLines: 2,
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
                                                 SizedBox(height: 4),
                                                 Text(
-                                                  book['author'] ?? 'Unknown Author',
+                                                  book.author,
                                                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                                     color: Color(0xFF8B4513),
                                                     fontWeight: FontWeight.w500,
@@ -515,7 +501,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                     borderRadius: BorderRadius.circular(8),
                                                   ),
                                                   child: Text(
-                                                    '${book['publishedYear'] ?? 'Unknown Year'}',
+                                                    '${book.publishedYear ?? 'Unknown Year'}',
                                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                                       color: Color(0xFF8B4513),
                                                       fontWeight: FontWeight.w600,
@@ -526,47 +512,45 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                             ),
                                           ),
                                           Column(
-                      children: [
-                        IconButton(
+                                            children: [
+                                              IconButton(
                                                 icon: Icon(Icons.edit, color: Color(0xFF8B4513)),
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AddBookPage(
-                                  isEditing: true,
-                                  initialTitle: book['title'] ?? '',
-                                  initialAuthor: book['author'] ?? '',
-                                  initialYear: book['publishedYear'] ?? 0,
-                                ),
-                              ),
-                            );
-                            if (result != null) {
-                              editBook(index, result['title'], result['author'], result['year']);
-                            }
-                          },
-                          tooltip: 'Edit book',
-                        ),
-                        IconButton(
+                                                onPressed: () async {
+                                                  final result = await Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) => AddBookPage(
+                                                        isEditing: true,
+                                                        initialTitle: book.title,
+                                                        initialAuthor: book.author,
+                                                        initialYear: book.publishedYear ?? 0,
+                                                      ),
+                                                    ),
+                                                  );
+                                                  if (result != null) {
+                                                    await editBook(index, result['title'], result['author'], result['year']);
+                                                  }
+                                                },
+                                                tooltip: 'Edit book',
+                                              ),
+                                              IconButton(
                                                 icon: Icon(Icons.delete, color: Color(0xFFEF4444)),
-                          onPressed: () => deleteBook(index),
-                          tooltip: 'Delete book',
-                        ),
-                      ],
+                                                onPressed: () => deleteBook(index),
+                                                tooltip: 'Delete book',
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                  ),
-                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       floatingActionButton: Container(
@@ -592,60 +576,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Icon(Icons.add, size: 28),
           backgroundColor: Colors.transparent,
           elevation: 0,
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => AddBookPage()),
-          );
-          if (result != null) {
-            addBook(result['title'], result['author'], result['year']);
-          }
-        },
-        tooltip: 'Add new book',
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => AddBookPage()),
+            );
+            if (result != null) {
+              await addBook(result['title'], result['author'], result['year']);
+            }
+          },
+          tooltip: 'Add new book',
         ),
       ),
     );
   }
-}
-
-// Custom painter for book pattern background
-class BookPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Color(0xFF8B4513).withOpacity(0.03)
-      ..strokeWidth = 1;
-
-    // Draw subtle book spine lines
-    for (int i = 0; i < size.width; i += 40) {
-      canvas.drawLine(
-        Offset(i.toDouble(), 0),
-        Offset(i.toDouble(), size.height),
-        paint,
-      );
-    }
-
-    // Draw page lines
-    for (int i = 0; i < size.height; i += 60) {
-      canvas.drawLine(
-        Offset(0, i.toDouble()),
-        Offset(size.width, i.toDouble()),
-        paint,
-      );
-    }
-
-    // Draw decorative dots
-    final dotPaint = Paint()
-      ..color = Color(0xFF8B4513).withOpacity(0.05)
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < size.width; i += 80) {
-      for (int j = 0; j < size.height; j += 80) {
-        canvas.drawCircle(Offset(i.toDouble(), j.toDouble()), 2, dotPaint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
