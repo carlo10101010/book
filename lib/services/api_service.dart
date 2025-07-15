@@ -230,23 +230,6 @@ class ApiService {
   // UTILITY METHODS
   // ========================================
 
-  /// Check if the server is running and accessible
-  /// 
-  /// Returns true if server responds to health check
-  /// Returns false if server is unreachable
-  static Future<bool> checkServerHealth() async {
-    try {
-      // Make GET request to health check endpoint
-      final response = await http.get(Uri.parse('$baseUrl/health'));
-      
-      // Return true if server responds with 200 OK
-      return response.statusCode == 200;
-    } catch (e) {
-      // Return false if any error occurs (network, timeout, etc.)
-      return false;
-    }
-  }
-
   /// Get detailed error information from API response
   /// 
   /// [response] - The HTTP response from the server

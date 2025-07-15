@@ -81,12 +81,6 @@ Search books by title, author, or description
 - **Parameters**: `query` - Search term
 - **Response**: Array of matching books
 
-### Health Check
-
-#### GET /api/health
-Check server status
-- **Response**: Server status object
-
 ## Book Schema
 
 ```javascript

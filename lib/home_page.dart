@@ -11,7 +11,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<Book> books = [];
   bool isLoading = true;
-  bool isConnected = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -52,38 +51,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
 
     try {
-      // Check server health first
-      isConnected = await ApiService.checkServerHealth();
-      
-      if (isConnected) {
-        final loadedBooks = await ApiService.getBooks();
-        setState(() {
-          books = loadedBooks;
-          isLoading = false;
-        });
-        _animationController.forward();
-      } else {
-        setState(() {
-          isLoading = false;
-        });
-        _showConnectionError();
-      }
+      final loadedBooks = await ApiService.getBooks();
+      setState(() {
+        books = loadedBooks;
+        isLoading = false;
+      });
+      _animationController.forward();
     } catch (e) {
       setState(() {
         isLoading = false;
       });
-      _showConnectionError();
     }
-  }
-
-  void _showConnectionError() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Cannot connect to server. Please check if the backend is running.'),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 5),
-      ),
-    );
   }
 
   Future<void> addBook(String title, String author, int year, {String? image}) async {

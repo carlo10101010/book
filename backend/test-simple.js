@@ -13,11 +13,6 @@ async function testSimpleAPI() {
   try {
     console.log('🧪 Testing Simple Book API...\n');
 
-    // Test 1: Health Check
-    console.log('1. Testing health check...');
-    const healthResponse = await axios.get(`${BASE_URL}/health`);
-    console.log('✅ Health check passed:', healthResponse.data);
-
     // Test 2: Create a book with user's format
     console.log('\n2. Testing book creation with your JSON format...');
     const createResponse = await axios.post(`${BASE_URL}/books`, testBook);

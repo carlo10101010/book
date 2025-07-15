@@ -12,7 +12,7 @@ class AppConfig {
   /// - Use this IP address for devices on the same network
   /// - Allows physical devices (phones, tablets) to connect to the backend
   /// - Works for both Android and iOS devices on the same network
-  static const String apiBaseUrl = 'http://192.168.192.155:5000/api';
+  static const String apiBaseUrl = 'http://192.168.192.169:5000/api';
   
   // Alternative configurations for different environments:
   

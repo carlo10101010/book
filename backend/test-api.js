@@ -15,11 +15,6 @@ async function testAPI() {
   try {
     console.log('🧪 Testing Book Management API...\n');
 
-    // Test 1: Health Check
-    console.log('1. Testing health check...');
-    const healthResponse = await axios.get(`${BASE_URL}/health`);
-    console.log('✅ Health check passed:', healthResponse.data);
-
     // Test 2: Create a book
     console.log('\n2. Testing book creation...');
     const createResponse = await axios.post(`${BASE_URL}/books`, testBook);

@@ -19,16 +19,6 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/books', bookRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true,
-    status: 'OK', 
-    message: 'Server is running',
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -49,7 +39,5 @@ app.use('*', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📚 Book API available at http://192.168.192.155:${PORT}/api/books`);
-  console.log(`🏥 Health check at http://192.168.192.155:${PORT}/api/health`);
-  console.log(`🌐 Server accessible from network at http://192.168.192.155:${PORT}`);
+
 });
