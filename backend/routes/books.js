@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 // POST create new book
 router.post('/', async (req, res) => {
   try {
-    const { title, author, publishedYear, description, genre, rating, isRead, image } = req.body;
+    const { title, author, publishedYear, isRead } = req.body;
     
     // Validate required fields
     if (!title || !author) {
@@ -37,11 +37,7 @@ router.post('/', async (req, res) => {
       title,
       author,
       publishedYear,
-      description: description || "",
-      genre: genre || "General",
-      rating: rating || 0,
-      isRead: isRead || false,
-      image: image || ""
+      isRead: isRead || false
     });
 
     const savedBook = await book.save();
@@ -85,7 +81,7 @@ router.get('/:id', async (req, res) => {
 // PUT update book
 router.put('/:id', async (req, res) => {
   try {
-    const { title, author, publishedYear, description, genre, rating, isRead, image } = req.body;
+    const { title, author, publishedYear, isRead } = req.body;
     
     const updatedBook = await Book.findByIdAndUpdate(
       req.params.id,
@@ -93,11 +89,7 @@ router.put('/:id', async (req, res) => {
         title,
         author,
         publishedYear,
-        description,
-        genre,
-        rating,
-        isRead,
-        image
+        isRead
       },
       { new: true, runValidators: true }
     );

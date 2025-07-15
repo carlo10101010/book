@@ -70,13 +70,11 @@ class _AddBookPageState extends State<AddBookPage> with TickerProviderStateMixin
       });
       return;
     }
-
-    // Return the book data to parent page (no image)
+    // Return the book data to parent page (no image, description, genre, or rating)
     Navigator.pop(context, {
       'title': titleCtrl.text.trim(),
       'author': authorCtrl.text.trim(),
       'year': int.tryParse(yearCtrl.text) ?? 0,
-      'image': null,
     });
   }
 

@@ -22,20 +22,8 @@ class Book {
   /// Year the book was published
   final int? publishedYear;
   
-  /// Description or summary of the book
-  final String? description;
-  
-  /// Genre or category of the book
-  final String? genre;
-  
-  /// Rating from 0.0 to 5.0
-  final double? rating;
-  
   /// Whether the book has been read
   final bool? isRead;
-  
-  /// Book cover image (base64 string or URL)
-  final String? image;
   
   /// When the book was added to the database
   final DateTime? createdAt;
@@ -49,11 +37,7 @@ class Book {
     required this.title,
     required this.author,
     this.publishedYear,
-    this.description,
-    this.genre,
-    this.rating,
     this.isRead,
-    this.image,
     this.createdAt,
   });
 
@@ -67,11 +51,7 @@ class Book {
       title: json['title'],
       author: json['author'],
       publishedYear: json['publishedYear'],
-      description: json['description'],
-      genre: json['genre'],
-      rating: json['rating']?.toDouble(), // Convert to double for precision
       isRead: json['isRead'],
-      image: json['image'],
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) // Parse ISO date string
           : null,
@@ -87,11 +67,7 @@ class Book {
       'title': title,
       'author': author,
       'publishedYear': publishedYear,
-      'description': description,
-      'genre': genre,
-      'rating': rating,
       'isRead': isRead,
-      'image': image,
     };
   }
 }

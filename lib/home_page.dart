@@ -64,7 +64,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> addBook(String title, String author, int year, {String? image}) async {
+  Future<void> addBook(String title, String author, int year) async {
     final nameRegExp = RegExp(r'^[A-Za-z ]+[0-9]*[A-D]*$');
     String? error;
     if (title.trim().isEmpty || !nameRegExp.hasMatch(title)) {
@@ -167,23 +167,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final baseSize = isLarge ? 100.0 : 60.0;
     final width = baseSize;
     final height = baseSize * 1.4;
-
-    // If the book has an image, display it
-    if (book.image != null && book.image!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.memory(
-          Uri.parse(book.image!).data!.contentAsBytes(),
-          fit: BoxFit.cover,
-          width: width,
-          height: height,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildGradientCover(book, width, height);
-          },
-        ),
-      );
-    }
-    // Otherwise, show a colored/gradient book cover
+    // Always show a colored/gradient book cover (no image field)
     return _buildGradientCover(book, width, height);
   }
 
@@ -424,12 +408,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   SizedBox(height: 24),
                                   Text(
                                     'Your library is empty',
-                                    style: Theme.of(context).textTheme.headlineMedium,
+                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                      color: Colors.white, // <-- changed to white
+                                    ),
                                   ),
                                   SizedBox(height: 8),
                                   Text(
                                     'Start building your collection by adding your first book!',
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Colors.white, // <-- changed to white
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                 ],
